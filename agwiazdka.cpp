@@ -1,312 +1,145 @@
-
 #include <iostream>
-#include <math.h>
 #include <fstream>
-#include <string>
-#include <typeinfo>
-#include <vector>
-#include <array>
+#include<algorithm>
+#include<vector>
 using namespace std;
-#define WYMX 20
-#define WYMY 20
 
-class Punkt
-{
-    int x;
-    int y;
-    float wpunktu;
-
-public:
-    Punkt(int obecx, int obecy, float wpun)
-    {
-        x = obecx;
-        y = obecy;
-        wpunktu = wpun;
-    };
-    int obecx()
-    {
-        return x;
-    }
-    int obecy()
-    {
-        return y;
-    }
-    float wpun()
-    {
-        return wpunktu;
-    }
-    float sciezka(int x1, int y1)
-    {
-        float odleglosc = sqrt(((x - x1) * (x - x1)) + ((y - y1) * (y - y1)));
-        return odleglosc;
-    }
+struct Point{
+    int x,y;
+    int type;
+    int distance;
+    Point *parent;
+    int state; // 0 nie przeanalizowane 1-do analizy 2-przeanalizowane
 };
 
-class Info
-{
-public:
-
-    Punkt rodzic = Punkt(0, 0, 0);
-
-    Info() {}
-    Info( Punkt rodzic)
-    {
-        rodzic = rodzic;
-    }
-};
-
-bool czy_pole_w_otwartej(vector<Punkt> ListaOtwarta, int x, int y)
-{
-    for (int i = 0; i < ListaOtwarta.size(); i++)
-    {
-        if (ListaOtwarta[i].obecx() == x && ListaOtwarta[i].obecy() == y)
+Point** load_map_from_file(string file, int sizeY, int sizeX){
+    ifstream fin(file.c_str());
+    Point **map_result = new Point*[sizeY];
+    for(int i=0; i<sizeY; ++i){
+        map_result[i] = new Point[sizeX];
+        for(int j=0; j<sizeX; j++)
         {
-            return true;
+            fin>>map_result[i][j].type;
+            map_result[i][j].parent = 0;
+            map_result[i][j].state = 0;
+            map_result[i][j].y=i;
+            map_result[i][j].x=j;
         }
     }
-    return false;
-}
-bool czy_pole_w_zamknietej(vector<Punkt> ListaZamknieta, int x, int y)
-{
-    for (int i = 0; i < ListaZamknieta.size(); i++)
-    {
-        if (ListaZamknieta[i].obecx() == x && ListaZamknieta[i].obecy() == y)
-        {
-            return true;
-        }
-    }
-    return false;
+    return map_result;
 }
 
-
-void dodaj_do_listy_otwartej(Punkt pole, vector<Punkt> &ListaOtwarta)
-{
-    ListaOtwarta.push_back(pole);
-}
-void dodaj_do_listy_zamknietej(Punkt pole, vector<Punkt> &ListaZamknieta)
-{
-    ListaZamknieta.push_back(pole);
-}
-Punkt najmniejsza_war_sciezki(vector<Punkt> &ListaOtwarta)
-{
-    Punkt pom(0, 0, 1000);
-    for (int i = 0; i < ListaOtwarta.size(); i++)
-    {
-        if (ListaOtwarta[i].wpun() <= pom.wpun())
-        {
-            pom = ListaOtwarta[i];
-        }
-    }
-    return pom;
+void remove_point(vector<Point *> *vec, Point* point){
+    std::vector<Point*>::iterator it = std::find(vec->begin(), vec->end(), point);
+    if (it != vec->end())
+        vec->erase(it);
 }
 
-void usun_element_listy(Punkt pom, vector<Punkt> &ListaOtwarta)
-{
-    for (int i = 0; i < ListaOtwarta.size(); i++)
-    {
-        if (ListaOtwarta[i].wpun() == pom.wpun())
-        {
-            vector<Punkt>::iterator it;
-            it = ListaOtwarta.begin() + i;
-            ListaOtwarta.erase(it);
-        }
-    }
+int heuristic(int point1_x, int point1_y, int point2_x, int point2_y){
+    return abs(point1_x - point2_x) + abs(point1_y - point2_y);
 }
 
-void algorytm_caly(Punkt start, Punkt pocz, Punkt konc, vector<vector<int>> G, int wymx, int wymy, vector<Punkt> &ListaOtwarta, vector<Punkt> &ListaZamknieta, array<array<Info, WYMX>, WYMY> info)
-{
-    ListaOtwarta.push_back(pocz);
-    int krok = 0;
+void a_star(Point **map, int sizeY, int sizeX, int startY, int startX, int targetY, int targetX){
 
-    while (!ListaOtwarta.empty())
-    {
+    auto compare_point = [&](Point* const & lp, Point* const & rp) {
+        return lp->distance + heuristic(lp->y, lp->x, targetY, targetX) > rp->distance + heuristic(rp->y, rp->x, targetY, targetX);
+        };
 
-        pocz = najmniejsza_war_sciezki(ListaOtwarta);
-        usun_element_listy(pocz, ListaOtwarta);
-        dodaj_do_listy_zamknietej(pocz, ListaZamknieta);
+    vector<Point*> vector;
 
-        if (((pocz.obecy() + 1) >= 0) && ((pocz.obecy() + 1) < wymy))
-        {
-            if (G[pocz.obecx()][pocz.obecy() + 1] != 5)
-            {
-                if (!czy_pole_w_zamknietej(ListaZamknieta, pocz.obecx(), pocz.obecy() + 1))
-                {
-                    if (!czy_pole_w_otwartej(ListaOtwarta, pocz.obecx(), pocz.obecy() + 1))
-                    {
-                        float w_sciezki1 = konc.sciezka(pocz.obecx(), pocz.obecy() + 1);
-                        int krok_sasiada = krok + 1; // krok_sasiada = krok1
-                        w_sciezki1 += krok_sasiada;
-                        Punkt pomocniczy1(pocz.obecx(), pocz.obecy() + 1, w_sciezki1);
-                        //                        cout<<"x=" <<pocz.obecx()<<"y="<<pocz.obecy()+1<< " dol " << G[pocz.obecx()][pocz.obecy()-1]  << "  "<<pomocniczy1.wpun()<<endl;
-                        dodaj_do_listy_otwartej(pomocniczy1, ListaOtwarta);
+    map[startY][startX].state=1;
+    map[startY][startX].distance = 0;
+    map[startY][startX].parent = 0;
 
-                        info[pocz.obecx()][pocz.obecy() + 1].rodzic = pocz;
-                        //                        cout<< info[pocz.obecx()][pocz.obecy()+1].rodzic.obecx()<<"-----------" <<endl;
-                    }
-                }
-            }
-        }
-        if (((pocz.obecy() - 1) >= 0) && ((pocz.obecy() - 1) < wymy))
-        { //sprawdzam czy zalicza sie do grida
-            if (G[pocz.obecx()][pocz.obecy() - 1] != 5)
-            { //czy to nie przeszkoda
-                if (!czy_pole_w_zamknietej(ListaZamknieta, pocz.obecx(), pocz.obecy() - 1))
-                { // czy nie jest w otwartej
-                    if (!czy_pole_w_otwartej(ListaOtwarta, pocz.obecx(), pocz.obecy() - 1))
-                    {                                                                   // czy nie jest w otwartej
-                        float w_sciezki = konc.sciezka(pocz.obecx(), pocz.obecy() - 1); //wartoœæ sciezki od punktu do mety
-                        int krok_sasiada = krok + 1;
-                        w_sciezki += krok_sasiada;
-                        Punkt pomocniczy(pocz.obecx(), pocz.obecy() - 1, w_sciezki);
-                        //                        cout<<"x=" <<pocz.obecx()<<"y="<<pocz.obecy()-1<< " gora  " << G[pocz.obecx()][pocz.obecy()-1] << "  "<<pomocniczy.wpun()<<endl;
-                        dodaj_do_listy_otwartej(pomocniczy, ListaOtwarta);
+    vector.push_back(&map[startY][startX]);
 
-                        info[pocz.obecx()][pocz.obecy() - 1].rodzic = pocz;
-                        //cout<< info[pocz.obecx()][pocz.obecy()].rodzic.obecx()<<"-----------" <<endl;
-                    }
-                }
-            }
-        }
-
-        if (((pocz.obecx() + 1) >= 0) && ((pocz.obecx() + 1) < wymx))
-        {
-            if (G[pocz.obecx() + 1][pocz.obecy()] != 5)
-            {
-                if (!czy_pole_w_zamknietej(ListaZamknieta, pocz.obecx() + 1, pocz.obecy()))
-                {
-                    if (!czy_pole_w_otwartej(ListaOtwarta, pocz.obecx() + 1, pocz.obecy()))
-                    {
-                        float w_sciezki3 = konc.sciezka(pocz.obecx() + 1, pocz.obecy());
-                        int krok_sasiada = krok + 1;
-                        w_sciezki3 += krok_sasiada;
-                        Punkt pomocniczy3(pocz.obecx() + 1, pocz.obecy(), w_sciezki3);
-                        //                        cout<<"x=" <<pocz.obecx()+1<<"y="<<pocz.obecy()<< " prawo " << G[pocz.obecx()][pocz.obecy()-1] << "  "<<pomocniczy3.wpun()<<endl;
-                        dodaj_do_listy_otwartej(pomocniczy3, ListaOtwarta);
-
-                        info[pocz.obecx() + 1][pocz.obecy()].rodzic = pocz;
-                        //                        cout<< info[pocz.obecx()+1][pocz.obecy()].rodzic.obecx()<<"-----------" <<endl;
-                    }
-                }
-            }
-        }
-        if (((pocz.obecx() - 1) >= 0) && ((pocz.obecx() - 1) < wymx))
-        {
-            if (G[pocz.obecx() - 1][pocz.obecy()] != 5)
-            {
-                if (!czy_pole_w_zamknietej(ListaZamknieta, pocz.obecx() - 1, pocz.obecy()))
-                {
-                    if (!czy_pole_w_otwartej(ListaOtwarta, pocz.obecx() - 1, pocz.obecy()))
-                    {
-                        float w_sciezki2 = konc.sciezka(pocz.obecx() - 1, pocz.obecy());
-                        int krok_sasiada = krok + 1;
-                        w_sciezki2 += krok_sasiada;
-                        Punkt pomocniczy2(pocz.obecx() - 1, pocz.obecy(), w_sciezki2);
-                        //                        cout<<"x=" <<pocz.obecx()-1<<"y="<<pocz.obecy()<< " lewo " << G[pocz.obecx()][pocz.obecy()-1]  << "  "<<pomocniczy2.wpun()<<endl;
-                        dodaj_do_listy_otwartej(pomocniczy2, ListaOtwarta);
-
-                        info[pocz.obecx() - 1][pocz.obecy()].rodzic = pocz;
-                        //                        cout<< info[pocz.obecx()-1][pocz.obecy()].rodzic.obecx()<<"-----------" <<endl;
-                    }
-                }
-            }
-        }
-
-        if ((pocz.obecx() == konc.obecx()) && (pocz.obecy() == konc.obecy()))
-        {
-
-            //cout << info[19][19].rodzic.obecy() << "------------------------------------";
-            vector<Punkt> lista_punktow;
-            vector<Punkt> wynik;
-
-            int x = konc.obecx();
-            int y = konc.obecy();
-            lista_punktow.push_back(konc);
-            Punkt pom = info[x][y].rodzic;
-
-//            cout<< "x=" << pom.obecx() <<"y=" << pom.obecy() << "Pierwszy rodzic" << endl;
-//            cout<< "x=" << pocz.obecx() <<"y=" << pocz.obecy() << endl;
-            while ((pom.obecx() != start.obecx()) && (pom.obecy() != start.obecy()))
-            {
-                lista_punktow.push_back(pom);
-                x = pom.obecx();
-                y = pom.obecy();
-                pom = info[x][y].rodzic;
-
-//                cout << "X " << x << " Y " << y << endl;
-
-            }
-            lista_punktow.push_back(pom);
-
-//            cout<< "x=" << pom.obecx() <<"y=" << pom.obecy() << endl;
-            lista_punktow.push_back(start);
-            while (!lista_punktow.empty())
-            {
-                Punkt pom1 = lista_punktow.back();
-                lista_punktow.pop_back();
-
-                G[pom1.obecx()][pom1.obecy()] = 1;
-
-            }
-            cout << "grid ukonczony" << endl;
-            for (int i = 0; i < WYMX; i++)
-            {
-                for (int j = 0; j < WYMY; j++)
-                {
-                    cout << G[i][j] ;
-                }
-                cout << endl;
-            }
+    while(!vector.empty()){
+        Point* currentPoint = vector.front();
+        currentPoint->state=2;
+        if(currentPoint->y == targetY && currentPoint->x == targetX){
             break;
         }
-        krok++;
+        remove_point(&vector,currentPoint);
+
+
+
+        int count_neighbours = 0;
+        Point* neighbours[4];
+        if(currentPoint->x + 1 < sizeX){
+            neighbours[count_neighbours]=&map[currentPoint->y][currentPoint->x + 1];
+            if(neighbours[count_neighbours]->state != 2 && neighbours[count_neighbours]->type != 5)
+                count_neighbours++;
+        }
+        if(currentPoint->y - 1 >= 0){
+            neighbours[count_neighbours]=&map[currentPoint->y -1 ][currentPoint->x];
+            if(neighbours[count_neighbours]->state != 2 && neighbours[count_neighbours]->type != 5)
+                count_neighbours++;
+        }
+        if(currentPoint->y + 1 < sizeY){
+            neighbours[count_neighbours]=&map[currentPoint->y + 1 ][currentPoint->x];
+            if(neighbours[count_neighbours]->state != 2 && neighbours[count_neighbours]->type != 5)
+                count_neighbours++;
+        }
+        if(currentPoint->x - 1 >= 0){
+            neighbours[count_neighbours]=&map[currentPoint->y][currentPoint->x - 1];
+            if(neighbours[count_neighbours]->state != 2 && neighbours[count_neighbours]->type != 5)
+                count_neighbours++;
+        }
+
+
+        for(int i=0; i<count_neighbours; i++){
+                if(neighbours[i]->state == 1)
+                    if(currentPoint->distance + 1 >= neighbours[i]->distance)
+                        continue;
+                    else
+                        remove_point(&vector,neighbours[i]);
+                neighbours[i]->parent = currentPoint;
+                neighbours[i]->distance = currentPoint->distance + 1;
+                neighbours[i]->state = 1;
+                vector.push_back(neighbours[i]);
+                push_heap(vector.begin(), vector.end(),compare_point);
+        }
     }
 
+    if(map[targetY][targetX].state == 2){
+        Point* way = &map[targetY][targetX];
+
+        do{
+            way->type = 1;
+        }while(way = way->parent);
+    }
+}
+
+void show_map(Point ** map, int sizeY, int sizeX){
+    for(int i=0; i<sizeY; i++){
+        for(int j=0; j<sizeX; j++){
+            cout<<map[i][j].type << " ";
+        }
+        cout<<endl;
+    }
 }
 
 int main()
 {
-    string mapa = "grid.txt";
-    int wymx = 20;
-    int wymy = 20;
+    Point **map;
 
-    vector<Punkt> list_otw;
-    vector<Punkt> list_zamkn;
-    vector<Punkt> scierzka;
-    array<array<Info, WYMX>, WYMY> info;
+    int sizeY = 20;
+    int sizeX = 20;
 
-    Punkt start(19,19, 1000);
-    Punkt meta(0,0, 0);
+    map = load_map_from_file("grid.txt", sizeY, sizeX);
 
-    //tablica dla grida
-    std::ifstream file(mapa.c_str());
-    vector<vector<int>> grid;
-    int value;
+    show_map(map, sizeY, sizeX);
 
-    for (unsigned int i = 0; i < wymx; i++)
-    {
-        vector<int> wiersz;
-        for (unsigned int j = 0; j < wymy; j++)
-        {
-            file >> value;
-            wiersz.push_back(value);
-        }
-        grid.push_back(wiersz);
-    }
-    file.close();
+    a_star(map,sizeY,sizeX,0,0,19,19);
 
-    for (int i = 0; i < wymx; i++)
-    {
-        for (int j = 0; j < wymy; j++)
-        {
-            cout << grid[i][j];
-        }
-        cout << endl;
-    }
-
-    algorytm_caly(start, start, meta, grid, wymx, wymy, list_otw, list_zamkn, info);
-
-    cout << "\n\nNacisnij ENTER aby zakonczyc";
-    getchar();
-
+    cout<<endl;
+    show_map(map, sizeY, sizeX);
     return 0;
 }
+
+
+
+
+
+
+
