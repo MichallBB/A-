@@ -2,6 +2,8 @@
 #include <fstream>
 #include<algorithm>
 #include<vector>
+#include <cmath>
+
 using namespace std;
 
 struct Point{
@@ -9,10 +11,10 @@ struct Point{
     int type;
     int distance;
     Point *parent;
-    int state; // 0 nie przeanalizowane 1-do analizy 2-przeanalizowane
+    int state;
 };
 
-Point** load_map_from_file(string file, int sizeY, int sizeX){
+Point** zaladuj_mape(string file, int sizeY, int sizeX){
     ifstream fin(file.c_str());
     Point **map_result = new Point*[sizeY];
     for(int i=0; i<sizeY; ++i){
@@ -36,10 +38,11 @@ void remove_point(vector<Point *> *vec, Point* point){
 }
 
 int heuristic(int point1_x, int point1_y, int point2_x, int point2_y){
-    return abs(point1_x - point2_x) + abs(point1_y - point2_y);
+    return sqrt((point1_x - point2_x) * (point1_x - point2_x) + (point1_y - point2_y) * (point1_y - point2_y));
 }
 
-void a_star(Point **map, int sizeY, int sizeX, int startY, int startX, int targetY, int targetX){
+
+void a_gwiazdka(Point **map, int sizeY, int sizeX, int startY, int startX, int targetY, int targetX){
 
     auto compare_point = [&](Point* const & lp, Point* const & rp) {
         return lp->distance + heuristic(lp->y, lp->x, targetY, targetX) > rp->distance + heuristic(rp->y, rp->x, targetY, targetX);
@@ -105,12 +108,12 @@ void a_star(Point **map, int sizeY, int sizeX, int startY, int startX, int targe
         Point* way = &map[targetY][targetX];
 
         do{
-            way->type = 1;
+            way->type = 3;
         }while(way = way->parent);
     }
 }
 
-void show_map(Point ** map, int sizeY, int sizeX){
+void pokaz_mape(Point ** map, int sizeY, int sizeX){
     for(int i=0; i<sizeY; i++){
         for(int j=0; j<sizeX; j++){
             cout<<map[i][j].type << " ";
@@ -126,20 +129,13 @@ int main()
     int sizeY = 20;
     int sizeX = 20;
 
-    map = load_map_from_file("grid.txt", sizeY, sizeX);
+    map = zaladuj_mape("grid.txt", sizeY, sizeX);
 
-    show_map(map, sizeY, sizeX);
+    pokaz_mape(map, sizeY, sizeX);
 
-    a_star(map,sizeY,sizeX,0,0,19,19);
+    a_gwiazdka(map,sizeY,sizeX,0,0,19,19);
 
     cout<<endl;
-    show_map(map, sizeY, sizeX);
+    pokaz_mape(map, sizeY, sizeX);
     return 0;
 }
-
-
-
-
-
-
-
