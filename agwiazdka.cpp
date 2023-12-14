@@ -45,8 +45,11 @@ int heuristic(int point1_x, int point1_y, int point2_x, int point2_y){
 void a_gwiazdka(Point **map, int sizeY, int sizeX, int startY, int startX, int targetY, int targetX){
 
     auto compare_point = [&](Point* const & lp, Point* const & rp) {
+        if (lp->distance + heuristic(lp->y, lp->x, targetY, targetX) == rp->distance + heuristic(rp->y, rp->x, targetY, targetX)) {
+            return lp->distance > rp->distance;
+        }
         return lp->distance + heuristic(lp->y, lp->x, targetY, targetX) > rp->distance + heuristic(rp->y, rp->x, targetY, targetX);
-        };
+    };
 
     vector<Point*> vector;
 
@@ -63,8 +66,6 @@ void a_gwiazdka(Point **map, int sizeY, int sizeX, int startY, int startX, int t
             break;
         }
         remove_point(&vector,currentPoint);
-
-
 
         int count_neighbours = 0;
         Point* neighbours[4];
@@ -89,18 +90,19 @@ void a_gwiazdka(Point **map, int sizeY, int sizeX, int startY, int startX, int t
                 count_neighbours++;
         }
 
-
         for(int i=0; i<count_neighbours; i++){
-                if(neighbours[i]->state == 1)
-                    if(currentPoint->distance + 1 >= neighbours[i]->distance)
-                        continue;
-                    else
-                        remove_point(&vector,neighbours[i]);
-                neighbours[i]->parent = currentPoint;
-                neighbours[i]->distance = currentPoint->distance + 1;
-                neighbours[i]->state = 1;
-                vector.push_back(neighbours[i]);
-                push_heap(vector.begin(), vector.end(),compare_point);
+            if(neighbours[i]->state == 1) {
+                if(currentPoint->distance + 1 >= neighbours[i]->distance) {
+                    continue;
+                } else {
+                    remove_point(&vector,neighbours[i]);
+                }
+            }
+            neighbours[i]->parent = currentPoint;
+            neighbours[i]->distance = currentPoint->distance + 1;
+            neighbours[i]->state = 1;
+            vector.push_back(neighbours[i]);
+            push_heap(vector.begin(), vector.end(),compare_point);
         }
     }
 
@@ -112,6 +114,7 @@ void a_gwiazdka(Point **map, int sizeY, int sizeX, int startY, int startX, int t
         }while(way = way->parent);
     }
 }
+
 
 void pokaz_mape(Point ** map, int sizeY, int sizeX){
     for(int i=0; i<sizeY; i++){
@@ -133,7 +136,7 @@ int main()
 
     pokaz_mape(map, sizeY, sizeX);
 
-    a_gwiazdka(map,sizeY,sizeX,0,0,19,19);
+    a_gwiazdka(map,sizeY,sizeX,19,19,0,0);
 
     cout<<endl;
     pokaz_mape(map, sizeY, sizeX);
